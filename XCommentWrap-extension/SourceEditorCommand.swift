@@ -28,11 +28,11 @@ class SourceEditorCommand: NSObject, XCSourceEditorCommand {
             
             let lines = buffer.lines.subarray(with: lineRange) as! [String]
             let parsedLines = lines.map(parse)
+            let commonLeading = parsedLines[0].0
             
             let fullText = parsedLines.map({ $1 }).joined(separator: " ")
-            let wrappedLines = wrap(string: fullText)
+            let wrappedLines = wrap(string: fullText, to: 80 - commonLeading.count)
             
-            let commonLeading = parsedLines[0].0
             let finalLines = wrappedLines.map({ commonLeading + $0 })
             
             buffer.lines.replaceObjects(in: lineRange, withObjectsFrom: finalLines)
@@ -58,12 +58,13 @@ class SourceEditorCommand: NSObject, XCSourceEditorCommand {
     /// Wrap a string into individual lines.
     ///
     /// - Parameter string: The string to wrap.
+    /// - Parameter width: The width to which to wrap.
     /// - Returns: An array of lines.
-    func wrap(string: String) -> [String] {
+    func wrap(string: String, to width: Int) -> [String] {
         var result: [String] = []
         var remainder: Substring? = Substring(string)
         while let s = remainder {
-            let (line, more) = wrapOneLine(string: s)
+            let (line, more) = wrapOneLine(string: s, to: width)
             result.append(String(line))
             remainder = more
         }
@@ -73,11 +74,10 @@ class SourceEditorCommand: NSObject, XCSourceEditorCommand {
     /// Wrap a string into one line plus an optional remainder.
     ///
     /// - Parameter string: The string to wrap.
+    /// - Parameter width: The width to which to wrap.
     /// - Returns: A tuple consisting of the first line and the rest of the string, or
     /// nil if the string is short enough to fit onto one line.
-    func wrapOneLine(string: Substring) -> (Substring, Substring?) {
-        let width = 80
-        
+    func wrapOneLine(string: Substring, to width: Int) -> (Substring, Substring?) {
         var cursor = string.startIndex
         var lastSpaceIndex: Substring.Index?
         for _ in 0 ..< width {
